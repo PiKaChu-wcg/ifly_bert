@@ -2,7 +2,7 @@ r'''
 Author       : PiKaChu_wcg
 Date         : 2021-08-16 06:56:07
 LastEditors  : PiKachu_wcg
-LastEditTime : 2021-08-17 02:59:28
+LastEditTime : 2021-08-18 00:22:54
 FilePath     : \ifly_bert\preprocess.py
 '''
 from transformers import BertTokenizer
@@ -25,8 +25,10 @@ class Data:
         self.k_level=k_level
         self.q_level=q_level
         self.batch_size=batch_size
-        self.train=True
-        self.getKD()
+        self.train=train
+        self.data={}
+        if self.train:
+            self.getKD()
         self.preprocess_data()
         self.get_dataloader()
     def getKD(self):
@@ -38,25 +40,39 @@ class Data:
         self.tokenizer.add_tokens("[selection]")
         cls_tk=self.tokenizer.cls_token
         f=lambda x:self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(cls_tk+str(x)))
-        for _,item in self.df.iterrows():
-            if not item.TestQuestionID in data.keys():
-                data[item.TestQuestionID]={}
-                if item.type=="单选题":
-                    data[item.TestQuestionID]["type"]="[single]"
-                else:
-                    data[item.TestQuestionID]["type"]="[mutli]"
-                data[item.TestQuestionID]["type"]=f(data[item.TestQuestionID]["type"])
-                data[item.TestQuestionID]["content"]=f(re.sub("（\s*）","[selection]",item.Content))[:512]
-                data[item.TestQuestionID]["analysis"]=f(item.Analysis)[:512]
-                data[item.TestQuestionID]["options"]=f(item.options)[:512]
-                data[item.TestQuestionID]["kid"]={}
-                if self.train:
+        if self.train:
+            for _,item in self.df.iterrows():
+                if not item.TestQuestionID in data.keys():
+                    data[item.TestQuestionID]={}
+                    if item.type=="单选题":
+                        data[item.TestQuestionID]["type"]="[single]"
+                    else:
+                        data[item.TestQuestionID]["type"]="[mutli]"
+                    data[item.TestQuestionID]["type"]=f(data[item.TestQuestionID]["type"])
+                    data[item.TestQuestionID]["content"]=f(re.sub("（\s*）","[selection]",item.Content))[:512]
+                    data[item.TestQuestionID]["analysis"]=f(item.Analysis)[:512]
+                    data[item.TestQuestionID]["options"]=f(item.options)[:512]
+                    data[item.TestQuestionID]["kid"]={}
                     data[item.TestQuestionID]["q_level"]=item.q_Level-1
-            if self.train:
                 data[item.TestQuestionID]["kid"][item.k_Level]=self.kd.check_k(item.k_Level,item.KnowledgeID)
+        else:
+           for _,item in self.df.iterrows():
+                if not item["index"] in data.keys():
+                    data[item["index"]]={}
+                    if item.type=="单选题":
+                        data[item["index"]]["type"]="[single]"
+                    else:
+                        data[item["index"]]["type"]="[mutli]"
+                    data[item["index"]]["type"]=f(data[item["index"]]["type"])
+                    data[item["index"]]["content"]=f(re.sub("（\s*）","[selection]",item.Content))[:512]
+                    data[item["index"]]["analysis"]=f(item.Analysis)[:512]
+                    data[item["index"]]["options"]=f(item.options)[:512]
+                    data[item["index"]]["k_level"]=item.k_Level-1
+                    data[item["index"]]["tid"]=item.TestQuestionID
         self.data=data
+
     def get_dataloader(self,batch_size=None):
-        dataset=question(self.data,3)
+        dataset=question(self.data,3,self.train)
         def collate_fn(batch):
             pad=lambda x:rnn_utils.pad_sequence(x, batch_first=True, padding_value=0)
             input=[]
@@ -69,7 +85,8 @@ class Data:
                 output.append(torch.tensor([line[1][-1] for line in batch]))
                 return [input,output]
             else:
-                return [input]
+                output=[[line[1][i] for line in batch] for i in range(2)]
+                return [input,output]
         if batch_size:
             dataloader=DataLoader(
                     dataset, 
@@ -84,7 +101,7 @@ class Data:
             dataloader=DataLoader(
                     dataset, 
                     batch_size=self.batch_size, 
-                    shuffle=True, 
+                    shuffle=self.train, 
                     drop_last=True,
                     collate_fn=collate_fn
                 ) 
