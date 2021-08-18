@@ -2,7 +2,7 @@ r'''
 Author       : PiKaChu_wcg
 Date         : 2021-08-17 09:06:22
 LastEditors  : PiKachu_wcg
-LastEditTime : 2021-08-18 10:55:03
+LastEditTime : 2021-08-18 10:58:58
 FilePath     : \ifly_bert\train.py
 '''
 from preprocess import Data
@@ -37,8 +37,11 @@ def main(args):
     writer=SummaryWriter(args.log)
     use_gpu=torch.cuda.is_available()
     model=model.cuda() if use_gpu else model
-    for param in model.l1.parameters():
-        param.requires_grad=False
+    for param in model.parameters():
+        param.requires_grad=True
+    if not args.train_all:
+        for param in model.l1.parameters():
+            param.requires_grad=False
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
     metrics=[]
     for i in range(4):
