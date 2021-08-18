@@ -33,6 +33,7 @@ class Data:
         self.get_dataloader()
     def getKD(self):
         self.kd=KD(self.k_level,self.df)
+        self.weights=self.kd.weights
     def preprocess_data(self):
         data={}
         self.tokenizer.add_tokens("[single]")
