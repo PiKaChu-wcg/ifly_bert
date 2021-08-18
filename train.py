@@ -2,7 +2,7 @@ r'''
 Author       : PiKaChu_wcg
 Date         : 2021-08-17 09:06:22
 LastEditors  : PiKachu_wcg
-LastEditTime : 2021-08-18 10:58:58
+LastEditTime : 2021-08-18 11:32:02
 FilePath     : \ifly_bert\train.py
 '''
 from preprocess import Data
@@ -28,12 +28,13 @@ def get_args():
 
 def main(args):
     epoch=args.epoch
+    print(f"Setup complete. Using torch {torch.__version__} ({torch.cuda.get_device_properties(0).name if torch.cuda.is_available() else 'CPU'})")
     bert_tokenizer = BertTokenizer.from_pretrained('hfl/chinese-bert-wwm-ext')
     data=Data(bert_tokenizer,args.data)
     data.get_dataloader(args.batch_size)
-    print("data has prepared!")
+    print("data has been prepared!")
     model=Net(3,data.features_nums()) if not args.model else torch.load(args.model)
-    print("model has prepared!")
+    print("model has been prepared!")
     writer=SummaryWriter(args.log)
     use_gpu=torch.cuda.is_available()
     model=model.cuda() if use_gpu else model
@@ -62,7 +63,7 @@ def main(args):
             for i in range(4):
                 loss_t=metrics[i]['loss'](output[i],item[1][i])
                 err[i].append(loss_t.item())
-                loss+=loss_t
+                loss+=loss_t if not i == 3 else 3*loss_t
                 metrics[i]["F"](output[i],item[1][i])
             optimizer.zero_grad()
             loss.backward()
@@ -87,7 +88,7 @@ def main(args):
             },
             e
         )
-        if not os.path.exists(model):
+        if not os.path.exists("model"):
             os.mkdir("model")
         if e%5==4:
             torch.save(model,"model/model_"+str(e)+".pth")
